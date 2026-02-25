@@ -26,10 +26,10 @@ jobs:
         uses: actions/checkout@v3
       
       - name: Publish to Docker Hub
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v6    
         with:       
-          context: Wash/
+          context: DataImport/
           provenance: mode=max
           sbom: true
           push: true
-          tags: excitetech/wash:${{github.ref_name}}
+          tags: excitetech/dataimport:${{github.ref_name}}
