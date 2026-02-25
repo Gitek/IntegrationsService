@@ -1,5 +1,6 @@
 package cx.excite.integrations.config;
 
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.security.SecuritySchemes;
@@ -15,8 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
-@SecuritySchemes({@SecurityScheme(name = "bearerToken", type = SecuritySchemeType.HTTP, bearerFormat = "JWT", scheme = "bearer"),
-        @SecurityScheme(name = "basicAuth", type = SecuritySchemeType.HTTP, scheme = "basic")}
+@SecuritySchemes({@SecurityScheme(name = "api-key", scheme = "api-key", type = SecuritySchemeType.APIKEY, in = SecuritySchemeIn.HEADER)}
 )
 public class OpenApiConfig  {
     @Value("${server.url}")
@@ -31,10 +31,10 @@ public class OpenApiConfig  {
     @Bean
     public OpenAPI openApi() {
         Info info = new Info();
-        info.setTitle("Integartions API");
+        info.setTitle("Integrations API");
         info.version(buildVersion);
         info.setDescription("""
-                Welcome to Integartions API.
+                Welcome to Integrations API.
                                 
                 This is placeholder text.\040\040
                 If this text is here, you don goofed.

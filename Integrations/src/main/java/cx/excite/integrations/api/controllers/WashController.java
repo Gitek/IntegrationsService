@@ -1,72 +1,76 @@
 package cx.excite.integrations.api.controllers;
 
-import cx.excite.integrations.api.RequestContext;
-import cx.excite.integrations.api.dto.HelloRequest;
-import cx.excite.integrations.api.dto.HelloResponse;
-import cx.excite.integrations.auth.TokenValidator;
+import cx.excite.integrations.auth.Validator;
+import cx.excite.integrations.database.entity.PortalProduct;
 import cx.excite.integrations.service.DataService;
+import cx.excite.integrations.service.LicenseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import org.apache.logging.log4j.LogManager;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+
 @RestController
 public class WashController {
     private final DataService dataService;
-    private final TokenValidator tokenValidator;
+    private final Validator validator;
+    private final LicenseService licenseService;
 
-    public WashController(DataService dataService, TokenValidator tokenValidator) {
+    public WashController(DataService dataService, Validator validator, LicenseService licenseService) {
         this.dataService = dataService;
-        this.tokenValidator = tokenValidator;
+        this.validator = validator;
+        this.licenseService = licenseService;
     }
 
-    @Operation(summary = "Hello auth.")
+    @Operation(summary = "Wash license.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "OK"),
-            @ApiResponse(responseCode = "400", description = "Missing token."),
-            @ApiResponse(responseCode = "401", description = "Could not verify token.")
+            @ApiResponse(responseCode = "401", description = "Invalid api key")
     })
-    @GetMapping("v1/worlds/auth/hello")
-    @SecurityRequirement(name = "bearerToken")
-    public ResponseEntity<String> helloAuth(@RequestHeader HttpHeaders headers,
-                                            @RequestParam(defaultValue = "excite") String param) {
-        var context = new RequestContext(tokenValidator, headers);
+    @PostMapping("v1/wash/license")
+    @SecurityRequirement(name = "api-key")
+    public ResponseEntity<String> washLicense(@RequestHeader HttpHeaders headers) {
         try {
+            validator.validateApiKey(headers);
 
-            if (!context.admin)
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "You are not authorized to perform this operation");
+            licenseService.deleteDisabledOrgs();
+            licenseService.deleteDuplicates();
 
-            String response = "This worked with parameter: " + param;
-
-            return context.packResponse(response, HttpStatus.OK);
+            List<PortalProduct> licenses = licenseService.getLicenses();
+            LogManager.getLogger().info("Number of inherit licenses: " + licenses.size());
+            if (licenses.size() > 0) {
+                licenseService.addLicenses(licenses);
+            }
+            return packResponse("Wash completed", HttpStatus.OK);
 
         } catch (Exception e) {
-            throw context.handleError(e);
+            throw handleError(e);
         }
     }
 
-    @Operation(summary = "Hello.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "OK")
-    })
-    @PostMapping("v1/worlds/hello")
-    @SecurityRequirement(name = "bearerToken")
-    public ResponseEntity<HelloResponse> hello(@RequestHeader HttpHeaders headers,
-                                               @RequestBody HelloRequest request) {
-        var context = new RequestContext(tokenValidator, headers);
-        try {
 
-            HelloResponse response = dataService.hello(request);
+    public ResponseEntity packResponse(Object response, HttpStatus status) {
+        var headers = new HttpHeaders();
+        var result = new ResponseEntity(response, headers, status);
+        return result;
+    }
 
-            return context.packResponse(response, HttpStatus.OK);
-
-        } catch (Exception e) {
-            throw context.handleError(e);
+    public ResponseStatusException handleError(Exception ex) {
+        ResponseStatusException result;
+        if (ex.getClass() == ResponseStatusException.class) {
+            result = (ResponseStatusException) ex;
+        } else {
+            result = new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+            result.setTitle(ex.getMessage());
+            LogManager.getLogger().error(ex.getMessage());
         }
+        return result;
     }
 }
