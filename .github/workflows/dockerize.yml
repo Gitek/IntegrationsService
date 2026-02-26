@@ -28,8 +28,8 @@ jobs:
       - name: Publish to Docker Hub
         uses: docker/build-push-action@v6    
         with:       
-          context: DataImport/
+          context: Integrations/
           provenance: mode=max
           sbom: true
           push: true
-          tags: excitetech/dataimport:${{github.ref_name}}
+          tags: excitetech/integrations:${{github.ref_name}}
